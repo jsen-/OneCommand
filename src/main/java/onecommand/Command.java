@@ -8,8 +8,14 @@ import java.util.List;
 public class Command {
 
     public enum Stdio {
-        INHERIT,
-        PIPE;
+        INHERIT(ProcessBuilder.Redirect.INHERIT),
+        PIPE(ProcessBuilder.Redirect.PIPE);
+
+        private ProcessBuilder.Redirect value;
+
+        private Stdio(ProcessBuilder.Redirect value) {
+            this.value = value;
+        }
     }
 
     final private ProcessBuilder pb = new ProcessBuilder();
@@ -40,7 +46,21 @@ public class Command {
     }
 
     public Command stderr(Stdio type) {
-        switch(type) {
+        switch (type) {
+            case INHERIT:
+                this.pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                break;
+            case PIPE:
+                this.pb.redirectError(ProcessBuilder.Redirect.PIPE);
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
+        return this;
+    }
+
+    public Command stdout(Stdio type) {
+        switch (type) {
             case INHERIT:
                 this.pb.redirectError(ProcessBuilder.Redirect.INHERIT);
                 break;

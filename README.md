@@ -6,8 +6,9 @@ ProcessResult ping = Command.create("ping")
         .arg("localhost")
         .arg("-n")
         .arg("99")
-        .start()
-        .waitFor(Duration.ofSeconds(3));
+        .stdout(Stdio.PIPE)
+        .stderr(Stdio.PIPE)
+        .start();
 
 System.out.println(ping.rc + " " + ping.stdout + " " + ping.stderr);
 ```

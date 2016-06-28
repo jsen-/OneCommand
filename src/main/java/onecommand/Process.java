@@ -14,6 +14,47 @@ import java.util.concurrent.TimeUnit;
 
 public class Process {
 
+    public enum Result {
+        COMPLETED,
+        TIMEDOUT,
+        KILLED;
+
+        int rc;
+        String stdout;
+        String stderr;
+
+        Result init(int rc, String stdout, String stderr) {
+            this.rc = rc;
+            this.stdout = stdout;
+            this.stderr = stderr;
+            return this;
+        }
+
+        public int rc() {
+            return this.rc;
+        }
+
+        public String stdout() {
+            return this.stdout;
+        }
+
+        public String stderr() {
+            return this.stderr;
+        }
+
+        static Result completed(int rc, String stdout, String stderr) {
+            return Result.COMPLETED.init(rc, stdout, stderr);
+        }
+
+        static Result timedout(int rc, String stdout, String stderr) {
+            return Result.TIMEDOUT.init(rc, stdout, stderr);
+        }
+
+        static Result killed(int rc, String stdout, String stderr) {
+            return Result.KILLED.init(rc, stdout, stderr);
+        }
+    }
+
     private static Callable createGobbler(InputStream stream) {
         return () -> {
             BufferedReader br = new BufferedReader(new InputStreamReader(stream));
@@ -41,21 +82,28 @@ public class Process {
         }
     }
 
-    ProcessResult waitFor() throws InterruptedException, ExecutionException {
-        return new ProcessResult(this.process.waitFor(),
+    public Result waitFor() throws InterruptedException, ExecutionException {
+        return Result.completed(this.process.waitFor(),
                 this.out == null ? null : this.out.get(),
                 this.err == null ? null : this.err.get());
     }
 
-    ProcessResult waitFor(Duration timeout) throws InterruptedException, ExecutionException {
-        if (!this.process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-            // the process did not yet terminate
-            this.process.destroyForcibly();
+    public Result waitFor(Duration timeout) throws InterruptedException, ExecutionException {
+        Result r;
+        if (this.process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+            r = Result.COMPLETED;
+        } else {
+            this.process.destroy();
+            if (this.process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                r = Result.TIMEDOUT;
+            } else {
+                this.process.destroyForcibly();
+                r = Result.KILLED;
+            }
         }
 
-        ProcessResult res = new ProcessResult(this.process.exitValue(),
+        return r.init(this.process.exitValue(),
                 this.out == null ? null : this.out.get(),
                 this.err == null ? null : this.err.get());
-        return res;
     }
 }
